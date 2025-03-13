@@ -1,5 +1,5 @@
-from moviepy.video.fx.all import fadein, resize
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip, ColorClip, ImageClip, AudioFileClip
+from moviepy import *
+import numpy as np
 import os
 import logging
 import sys
@@ -95,22 +95,22 @@ def create_shorts_video(process_folder, output_path=None):
 
         # Create a background with YouTube Shorts resolution
         background = ColorClip(size=(SHORTS_WIDTH, SHORTS_HEIGHT),
-                               color=(10, 6, 47)).set_duration(MAX_DURATION)
+                               color=(10, 6, 47), duration=MAX_DURATION)
 
         # Load and prepare the corgi GIF
         video = VideoFileClip(corgi_path, has_mask=True)
 
         # Loop the gif for the full duration
-        looped_video = video.loop(duration=MAX_DURATION)
+        looped_video = video.with_effects([vfx.Loop(duration=MAX_DURATION)])
 
         # Animation parameters
         initial_height = 100  # Start small
         final_height = 700    # Target size
 
-        # Get original aspect ratio
+        # # Get original aspect ratio
         aspect_ratio = video.w / video.h
 
-        # Define scaling function for smooth animation
+        # # Define scaling function for smooth animation
         def scale_func(t):
             if t > 0.3:
                 # Exact target size
@@ -122,21 +122,18 @@ def create_shorts_video(process_folder, output_path=None):
                 return (int(height * aspect_ratio), height)
 
         # Apply scaling and position
-        gif_resized = looped_video.set_position(
-            ("center", "bottom")).resize(scale_func)
 
-        # Load and prepare the trend image
-        trend_img = ImageClip(image_path).resize(
-            width=SHORTS_WIDTH - 2 * PADDING)
-        trend_img = trend_img.set_position(
-            ("center", "center")).set_duration(MAX_DURATION)
+        gif_resized = looped_video.with_position(
+            ("center", "bottom")).resized(scale_func)
 
-        # Apply delayed pop-in effect
-        trend_img = trend_img.resize(lambda t: max(
-            0.5, min(1, t * 2.5)) if t < 0.8 else 1).set_start(0.5)
+        # # Load and prepare the trend image
+        trend_img = ImageClip(image_path, duration=MAX_DURATION).resized(
+            width=SHORTS_WIDTH - 2 * PADDING, height=SHORTS_HEIGHT // 2)
+        trend_img = trend_img.with_position(
+            ("center", 350))
 
-        # Load audio
-        audio = AudioFileClip(audio_path).set_duration(MAX_DURATION)
+        # # Load audio
+        audio = AudioFileClip(audio_path).with_duration(MAX_DURATION)
 
         # Choose a font
         font_path = None
@@ -157,23 +154,29 @@ def create_shorts_video(process_folder, output_path=None):
         subtitle_clips = []
         for start, end, text in captions:
             try:
-                clip = TextClip(text, fontsize=100, color="white", font=font_path,
+                clip = TextClip(text=text, font_size=100, color="white", font=font_path,
                                 stroke_width=3, stroke_color="black")
-                clip = clip.set_position(("center", subtitle_y_position))
-                clip = clip.set_start(start).set_end(end)
+                clip = clip.with_position(("center", subtitle_y_position))
+                clip = clip.with_start(start).with_end(end)
                 subtitle_clips.append(clip)
             except Exception as e:
                 logger.warning(
                     f"Error creating subtitle for '{text}': {str(e)}")
 
-        # Compose the final video
-        final_video = CompositeVideoClip(
-            [background, trend_img, gif_resized, *subtitle_clips]).set_audio(audio)
+        clips_to_compose = [background, trend_img, gif_resized]
+        clips_to_compose.extend(subtitle_clips)
 
-        # Save the final video
+        # Create composite with explicit duration
+        final_video = CompositeVideoClip(
+            clips_to_compose, size=(SHORTS_WIDTH, SHORTS_HEIGHT))
+        final_video.audio = CompositeAudioClip([audio])
+
+        # # Save the final video
         logger.info(f"Writing video to {output_path}")
-        final_video.write_videofile(
-            output_path, codec="libx264", fps=24, audio_codec="aac", bitrate="5000k")
+        # final_video.write_videofile(
+        #     output_path, codec="libx264", fps=24, audio_codec="aac", bitrate="5000k", verbose=False,)
+
+        final_video.preview()
 
         # Clean up resources
         video.close()
@@ -190,19 +193,18 @@ def create_shorts_video(process_folder, output_path=None):
 
 def main():
     """
-    Main function for testing the video creation as a standalone script.
+    Main function with hard-coded input directory and output path.
     """
-    import argparse
+    # Hard-coded input directory
+    input_folder = "transcribed/1741894201"
 
-    parser = argparse.ArgumentParser(
-        description="Create YouTube Shorts style videos from processed articles")
-    parser.add_argument("folder", help="Path to the processed article folder")
-    parser.add_argument(
-        "--output", "-o", help="Output video path (default: folder/output_shorts.mp4)")
+    # Hard-coded output path
+    output_path = "output_videos/shorts_video.mp4"
 
-    args = parser.parse_args()
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    result = create_shorts_video(args.folder, args.output)
+    result = create_shorts_video(input_folder, output_path)
 
     if result:
         print(f"✅ Video created successfully: {result}")

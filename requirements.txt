@@ -4,3 +4,4 @@ elevenlabs
 vertexai
 pydantic
 montreal-forced-aligner
+pandas

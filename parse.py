@@ -79,10 +79,10 @@ def parse_textgrid(textgrid_path):
 
 
 # For direct testing
-if __name__ == "__main__":
-    # Example path for testing
-    test_path = "transcribed/1741894201/alignment/1741894201.TextGrid"
-    captions = parse_textgrid(test_path)
-    print(f"Found {len(captions)} captions:")
-    for start, end, text in captions[:5]:  # Display first 5 for sanity check
-        print(f"{start:.2f} - {end:.2f}: {text}")
+# if __name__ == "__main__":
+#     # Example path for testing
+#     test_path = "transcribed/1741894201/alignment/1741894201.TextGrid"
+#     captions = parse_textgrid(test_path)
+#     print(f"Found {len(captions)} captions:")
+#     for start, end, text in captions[:5]:  # Display first 5 for sanity check
+#         print(f"{start:.2f} - {end:.2f}: {text}")
