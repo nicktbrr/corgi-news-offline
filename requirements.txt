@@ -3,3 +3,4 @@ google-generativeai
 elevenlabs
 vertexai
 pydantic
+montreal-forced-aligner
