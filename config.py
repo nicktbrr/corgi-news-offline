@@ -8,7 +8,7 @@ load_dotenv()
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "YOUR_ELEVENLABS_API_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
     "GOOGLE_APPLICATION_CREDENTIALS",
-    "/Users/nick/Desktop/insta-brainrot/corgi-news-c63371833ca9.json"
+    "corgi-news-c63371833ca9.json"
 )
 GEMINI_KEY = os.environ.get('GEMINI_KEY')
 NVIDIA_KEY = os.environ.get('NVIDIA_KEY')
