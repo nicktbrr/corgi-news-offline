@@ -13,6 +13,7 @@ logger = logging.getLogger('movie_generator')
 # YouTube Shorts resolution
 SHORTS_WIDTH, SHORTS_HEIGHT = 1080, 1920
 PADDING = 50  # Padding for summary image
+PAUSE_DURATION = 0.25
 
 
 def create_shorts_video(process_folder, output_path=None):
@@ -28,6 +29,7 @@ def create_shorts_video(process_folder, output_path=None):
         str: Path to the created video file or None if creation failed
     """
     try:
+
         # Ensure process folder exists
         if not os.path.exists(process_folder):
             logger.error(f"Process folder not found: {process_folder}")
@@ -89,6 +91,7 @@ def create_shorts_video(process_folder, output_path=None):
         # Maximum duration based on last caption end time
         # Default 10 seconds if no captions
         MAX_DURATION = captions[-1][1] if captions else 10
+        MAX_DURATION = MAX_DURATION + (PAUSE_DURATION)
 
         logger.info(
             f"Creating video with duration: {MAX_DURATION:.2f} seconds")
@@ -131,9 +134,15 @@ def create_shorts_video(process_folder, output_path=None):
             width=SHORTS_WIDTH - 2 * PADDING, height=SHORTS_HEIGHT // 2)
         trend_img = trend_img.with_position(
             ("center", 350))
+        trend_img = trend_img.with_effects(
+            [vfx.FadeIn(duration=.5), vfx.FadeOut(duration=.5)])
 
         # # Load audio
         audio = AudioFileClip(audio_path).with_duration(MAX_DURATION)
+
+        silence_end = AudioClip(lambda t: 0, duration=PAUSE_DURATION)
+        full_audio = concatenate_audioclips(
+            [audio, silence_end])
 
         # Choose a font
         font_path = None
@@ -150,18 +159,55 @@ def create_shorts_video(process_folder, output_path=None):
         subtitle_y_position = (SHORTS_HEIGHT // 2) - \
             (trend_img_height // 2) - 500
 
-        # Generate text clips for captions
+        # Generate text clips for captions with combined words
         subtitle_clips = []
+        current_text = ""
+        current_start = None
+        current_end = None
+        MAX_CHAR_COUNT = 25
+
         for start, end, text in captions:
+            # If we haven't started a new text group yet, initialize with this word
+            if current_text == "":
+                current_text = text
+                current_start = start
+                current_end = end
+            # If adding this word would keep us under the character limit, add it
+            elif len(current_text + " " + text) <= MAX_CHAR_COUNT:
+                current_text += " " + text
+                current_end = end  # Update the end time to the end of the last word
+            # Otherwise, create a clip with the accumulated text and start a new group
+            else:
+                try:
+                    clip = TextClip(text=current_text, font_size=100, color="white", font=font_path,
+                                    stroke_width=3, stroke_color="black")
+                    clip = clip.with_position(("center", subtitle_y_position))
+                    clip = clip.with_start(current_start).with_end(current_end)
+                    subtitle_clips.append(clip)
+                    logger.info(
+                        f"Created subtitle: '{current_text}' ({current_start} to {current_end})")
+                except Exception as e:
+                    logger.warning(
+                        f"Error creating subtitle for '{current_text}': {str(e)}")
+
+                # Start a new text group with the current word
+                current_text = text
+                current_start = start
+                current_end = end
+
+        # Don't forget the last group of text if there is any
+        if current_text:
             try:
-                clip = TextClip(text=text, font_size=100, color="white", font=font_path,
+                clip = TextClip(text=current_text, font_size=100, color="white", font=font_path,
                                 stroke_width=3, stroke_color="black")
                 clip = clip.with_position(("center", subtitle_y_position))
-                clip = clip.with_start(start).with_end(end)
+                clip = clip.with_start(current_start).with_end(current_end)
                 subtitle_clips.append(clip)
+                logger.info(
+                    f"Created subtitle: '{current_text}' ({current_start} to {current_end})")
             except Exception as e:
                 logger.warning(
-                    f"Error creating subtitle for '{text}': {str(e)}")
+                    f"Error creating subtitle for '{current_text}': {str(e)}")
 
         clips_to_compose = [background, trend_img, gif_resized]
         clips_to_compose.extend(subtitle_clips)
@@ -169,14 +215,14 @@ def create_shorts_video(process_folder, output_path=None):
         # Create composite with explicit duration
         final_video = CompositeVideoClip(
             clips_to_compose, size=(SHORTS_WIDTH, SHORTS_HEIGHT))
-        final_video.audio = CompositeAudioClip([audio])
+        final_video.audio = full_audio
 
         # # Save the final video
         logger.info(f"Writing video to {output_path}")
-        # final_video.write_videofile(
-        #     output_path, codec="libx264", fps=24, audio_codec="aac", bitrate="5000k", verbose=False,)
+        final_video.write_videofile(
+            output_path, codec="libx264", fps=24, audio_codec="aac", bitrate="5000k")
 
-        final_video.preview()
+        # final_video.preview()
 
         # Clean up resources
         video.close()

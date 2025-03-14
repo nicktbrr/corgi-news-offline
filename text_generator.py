@@ -40,6 +40,7 @@ class TextGenerator:
         Give me:
         1. A summary of the text that can be spoken in 20-30 seconds.
         2. Three distinct picture ideas that could visualize the article, each described in 1-2 sentences.
+        3. Make sure that there are no special characters in the text, use the english spelling instead, EX '%' should be percent
         
         Format your response as valid JSON with the following structure:
         {
