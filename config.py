@@ -12,6 +12,7 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
 )
 GEMINI_KEY = os.environ.get('GEMINI_KEY')
 NVIDIA_KEY = os.environ.get('NVIDIA_KEY')
+MINIMAX_KEY = os.environ.get('MINIMAX_KEY')
 
 # Project Configuration
 PROJECT_ID = 'corgi-news'
